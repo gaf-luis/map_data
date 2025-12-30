@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Muehlen Koelsch Verfuegbarkeit</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+
+
+  <style>
+
+    @font-face {
+      font-family: "Barlow-Regular";
+      src: url("https://muehlenkoelsch.de/wp-content/uploads/2024/09/Barlow-Regular.woff2") format("woff2");
+      font-display: swap;
+    }
+
+     @font-face {
+      font-family: "Acumin Variable";
+      src: url("https://muehlenkoelsch.de/wp-content/uploads/2025/09/AcuminPro-Bold.woff2") format("woff2");
+      font-display: swap;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: "Acumin Variable", sans-serif;
+      font-size: 16px;
+    }
+
+    .leaflet-popup-content,
+    .leaflet-popup-content-wrapper {
+      font-family: "Barlow-Regular", sans-serif;
+    }
+
+    #map {
+      height: 100%;
+      width: 100%;
+    }
+     #controls {
+      padding: 10px;
+      background: rgb(255, 255, 255); /* Changed from white to black */
+      color: white;      /* Set default text color to white */
+      position: absolute;
+      top: 3px;
+      left: 60px;
+      z-index: 1000;
+      margin: 10px;
+      border-radius: 8px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.3);
+      border: 2px solid #000000;
+    }
+
+/* This creates the gap between the two rows */
+.control-item {
+  display: flex;         /* Use flex to align checkbox and oval perfectly */
+  align-items: center;   /* Centers them vertically */
+  margin-bottom: 10px;   /* This is your gap between the boxes */
+  cursor: pointer;
+}
+.control-item2 {
+  display: flex;         /* Use flex to align checkbox and oval perfectly */
+  align-items: center;   /* Centers them vertically */
+  cursor: pointer;
+}
+
+.oval-box {
+  display: inline-block;
+  border: 4px solid;
+  border-radius: 8px;
+  padding: 3px 7px;
+  margin-left: 10px;
+  
+  /* 2. Changed color from black to white */
+  color: rgb(0, 0, 0); 
+  font-family: sans-serif;
+  font-weight: 500;
+  
+}
+
+/* Color logic for the borders only */
+.color-red {
+  background-color: transparent;
+  border-color: #ee3a3e;
+}
+
+.color-green {
+  background-color: transparent;
+  border-color: #00703c; 
+}
+
+  </style>
+</head>
+<body>
+
+<div id="controls">
+  <label class="control-item">
+    <input type="checkbox" id="gastronomie" checked> 
+    <span class="oval-box color-red">Gastronomie</span>
+  </label>
+  <label class="control-item2">
+    <input type="checkbox" id="handel" checked> 
+    <span class="oval-box color-green">Handel</span>
+  </label>
+</div>
+
+<div id="map"></div>
+
+<script>
+  const map = L.map('map').setView([50.94, 6.96], 12);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19
+  }).addTo(map);
+
+  const layers = {
+    Gastronomie: L.layerGroup().addTo(map),
+    Handel: L.layerGroup().addTo(map),
+  };
+
+  const redIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+    iconSize: [21, 34],
+    iconAnchor: [10, 34],
+    popupAnchor: [0, -20]
+  });
+
+  const blackIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-black.png',
+    iconSize: [21, 34],
+    iconAnchor: [10, 34],
+    popupAnchor: [0, -20]
+  });
+
+  const customIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/gaf-luis/map_data/main/muehlen_marker_test_rot_rot.png',
+    iconSize: [21, 34],
+    iconAnchor: [10, 34],
+    popupAnchor: [0, -20]
+  });
+
+  const customIcon2 = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/gaf-luis/map_data/main/muehlen_marker_test_test.png',
+    iconSize: [21, 34],
+    iconAnchor: [10, 34],
+    popupAnchor: [0, -20]
+  });
+
+  function toggleLayer(layerName, show) {
+    if (show) {
+      layers[layerName].addTo(map);
+    } else {
+      map.removeLayer(layers[layerName]);
+    }
+  }
+
+  fetch('https://raw.githubusercontent.com/gaf-luis/map_data/main/map_data.json?v=' + Date.now())
+    .then(res => res.json())
+    .then(locations => {
+      locations.forEach(loc => {
+
+        const icon =
+          loc.absatzweg === "Gastronomie"
+            ? customIcon
+            : customIcon2;
+
+        const address = loc.kombi_addr;
+
+        const marker = L.marker([loc.lat, loc.lng], { icon: icon })
+          .bindPopup(`
+            <div style="font-family: 'Acumin Variable', sans-serif; font-size:18px; font-weight: bold">
+              ${loc.name}
+            </div>
+            <div style="margin-bottom:10px;">
+              ${loc.strasse}, ${loc.plz} ${loc.ort}
+            </div>
+            <div style="margin-bottom:10px;">
+              ${loc.sorten}
+            </div>
+            <div style="text-align:center; margin-bottom:10px;">
+              <a href="https://www.google.com/maps/dir/?api=1&destination=${address}"
+                 target="_blank"
+                 style="display:inline-block; padding:6px 10px; background:#0078ff; color:white; border-radius:5px; text-decoration:none; font-weight:bold;">
+                Routenplaner
+              </a>
+            </div>
+          `);
+
+        marker.addTo(layers[loc.absatzweg]);
+      });
+    });
+
+  document.getElementById("gastronomie").addEventListener("change", e =>
+    toggleLayer("Gastronomie", e.target.checked)
+  );
+
+  document.getElementById("handel").addEventListener("change", e =>
+    toggleLayer("Handel", e.target.checked)
+  );
+</script>
+
+</body>
+</html>
