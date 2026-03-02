@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Verfügbarkeit | Gaffel Kölsch</title>
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"/>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"/>
+    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+
+    <style>
+    @font-face {
+      font-family: "Barlow-Regular";
+      src: url("https://muehlenkoelsch.de/wp-content/uploads/2024/09/Barlow-Regular.woff2") format("woff2");
+      font-display: swap;
+    }
+
+     @font-face {
+      font-family: "Acumin Variable";
+      src: url("https://muehlenkoelsch.de/wp-content/uploads/2025/09/AcuminPro-Bold.woff2") format("woff2");
+      font-display: swap;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: "Acumin Variable", sans-serif;
+      font-size: 18px;
+    }
+
+    .leaflet-popup-content,
+    .leaflet-popup-content-wrapper {
+        font-family: "Barlow-Regular", sans-serif;
+    }
+
+    #map {
+      height: 100%;
+      width: 100%;
+    }
+
+    .controls-wrapper {
+        position: absolute;
+        top: 20px;
+        left: 60px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        z-index: 1000;
+    }
+
+    .controls {
+        background: #00263e;
+        padding: 8px;
+        border-radius: 8px;
+        border: 3px solid #000;
+        width: fit-content;
+    }
+    
+    .marker-legend {
+        width: 21px;
+        height: 31px;
+        display: block;
+        object-fit: contain;
+        margin-top: 2px;
+        margin-left: 4px;
+        transform: translateY(-2px);
+    }
+
+    .control-item {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        cursor: pointer;
+    }
+
+    .control-item input[type="checkbox"] {
+        cursor: pointer;
+        flex: 0 0 auto;
+    }
+
+    .label-text {
+        display: block;
+        line-height: normal;
+        padding-top: 0.2em;
+        color:#F8F8F8;
+        margin-left: 8px;
+    }
+
+    .popup-name {
+        font-family: "Acumin Variable", sans-serif;
+        font-size: 18px;
+        font-weight: bold;
+        line-height: 1;    
+    }
+
+    .popup-address {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 6px;
+    }
+
+    .popup-sorten {
+        font-family: "Acumin Variable", sans-serif;
+        background: #f8f8f8;
+        border-radius: 6px;
+        padding: 6px 8px;
+        margin-bottom: 10px;
+        line-height: 1.4;
+        border-left: 4px solid #00263e;
+    }
+    
+    .popup-route {
+        text-align: center;
+    }
+
+    .popup-route a {
+        display: inline-block;
+        padding: 6px 10px;
+        background: #0078ff;
+        color: white;
+        border-radius: 5px;
+        text-decoration: none;
+        font-weight: bold;
+    }
+
+    .status-ok {
+        color: #00703c;
+        font-family: "Barlow-Regular", sans-serif;
+    }
+
+    .status-no {
+        color: #c62828;
+        font-family: "Barlow-Regular", sans-serif;
+    }
+
+    .marker-cluster-small,
+    .marker-cluster-medium,
+    .marker-cluster-large {
+        background-color: #fffaee !important;
+    }
+
+    .marker-cluster div {
+        background-color: #00263e !important;
+        color: white !important;
+        font-family: "Acumin Variable", sans-serif;
+        font-weight: bold; 
+    }
+
+    .leaflet-marker-pane
+    {
+        transition: opacity 0.15s ease-out;
+    }
+
+    @media (max-width: 768px) {
+        #controls {
+        left: 0;
+        right: 0;
+        margin-left: auto;
+        margin-right: auto;
+        }
+    }
+    </style>
+</head>
+
+<body>
+   <div class="controls-wrapper">
+  <div class="controls" id="controls"></div>
+  <div class="controls" id="controls3"></div>
+</div>
+    
+
+    <div id="map"></div>
+    
+    <script>
+        const isMobile = L.Browser.mobile;
+
+        const map = L.map('map', {
+            preferCanvas: true,
+            fadeAnimation: !isMobile,
+            markerZoomAnimation: !isMobile,
+            inertia: true
+        }).setView([50.94, 6.96], 12);
+
+        map.options.zoomSnap = 0.5;
+        map.options.zoomDelta = 0.5;
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            updateWhenZooming: false,
+            updateWhenIdle: false,
+            keepBuffer: 4
+        }).addTo(map);
+
+        const cluster = L.markerClusterGroup({
+            disableClusteringAtZoom: 15,
+            maxClusterRadius: 150, 
+            spiderfyOnMaxZoom: false,
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true,
+            chunkedLoading: true,
+            chunkInterval: 50
+
+        });
+
+        cluster.addTo(map);
+
+        const customIcon_red = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/gaf-luis/map_data/main/gaffel_marker_small_g.png',
+            iconSize: [25, 39],
+            iconAnchor: [12.5, 39],
+            popupAnchor: [0, -24]
+        });
+
+        const customIcon_green = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/gaf-luis/map_data/main/gaffel_marker_small_g.png',
+            iconSize: [25, 39],
+            iconAnchor: [12.5, 39],
+            popupAnchor: [0, -24]
+        });
+
+        function applyFilters() {
+            cluster.clearLayers();
+
+            const selectedLevel2 = new Set(
+                Array.from(document.querySelectorAll('#controls input[data-level2]:checked'))
+                    .map(cb => cb.dataset.level2)
+            );
+
+            const selectedProducts = new Set(
+                Array.from(document.querySelectorAll('#controls3 input[data-product]:checked'))
+                    .map(cb => cb.dataset.product)
+            );
+
+            // If a group has nothing selected, treat as "no restriction" for that group
+            const restrictLevel2 = selectedLevel2.size > 0;
+            const restrictProducts = selectedProducts.size > 0;
+
+            // With 7k markers, scanning allMarkers is totally fine and keeps logic simple.
+            for (const m of allMarkers) {
+                const meta = m._meta || {};
+                if (restrictLevel2 && !selectedLevel2.has(meta.level_2)) continue;
+
+                if (restrictProducts) {
+                    const prods = meta.products || [];
+                    // OR logic: marker is shown if it has at least one of the selected products available
+                    let ok = false;
+                    for (const p of selectedProducts) {
+                        if (prods.includes(p)) { ok = true; break; }
+                    }
+                    if (!ok) continue;
+                }
+
+                cluster.addLayer(m);
+            }
+        }
+
+
+        const markersByValues = {};
+        const markersByProducts = {};
+        const allMarkers = [];
+
+        (async () => {
+        try {
+            const mediaRes = await fetch(
+            
+            'https://raw.githubusercontent.com/gaf-luis/map_data/main/test_gaffel_map_data.json',);
+            
+            const mediaItems = await mediaRes.json();
+
+            if (!mediaItems.length) {
+            throw new Error("map_data.json not found");
+            }
+
+            const jsonUrl = mediaItems[0].source_url;
+
+            fetch(jsonUrl)
+                .then(res => res.json())
+                .then(locations => {
+            locations.forEach(loc => {
+
+                    const icon =
+                    loc.absatzweg === "Gastronomie"
+                        ? customIcon_red
+                        : customIcon_green;
+
+                    const address = loc.kombi_addr;
+
+                    const filter_criteria = loc.absatzweg
+
+                    const availableProducts = String(loc.verfuegbare_produkte || "")
+                        .split(",")
+                        .map(p => p.trim())
+                        .filter(Boolean);
+
+                    const marker = L.marker([loc.lat, loc.lng], { icon: icon })
+                    .bindPopup(`
+                        <div class="popup-name">${loc.name}</div>
+                        <div class="popup-address">
+                            ${loc.strasse}, ${loc.plz} ${loc.ort}
+                        </div>
+                        <div class="popup-sorten">
+                            ${String(loc.sorten)
+                            .replace(/Nicht\s*verfügbar/g, '<span class="status-no">Nicht verfügbar</span>')
+                            .replace(/\bVerfügbar\b/g, '<span class="status-ok">Verfügbar</span>')
+                            }
+                        
+                        </div>
+                        <div class="popup-route">
+                            <a href="https://www.google.com/maps/dir/?api=1&destination=${address}"
+                            target="_blank">
+                            Routenplaner
+                            </a>
+                        </div>
+                    `);
+                    
+                    // Attach metadata so filters can work fast
+                    marker._meta = { level_2: filter_criteria, products: availableProducts };
+                    allMarkers.push(marker);
+
+                    availableProducts.forEach(p => {
+                        if (!(p in markersByProducts)) { markersByProducts[p] = [];}
+                        markersByProducts[p].push(marker);
+                    });
+
+                    if (!(filter_criteria in markersByValues)) { { 
+                        markersByValues[filter_criteria]=[]          
+                    }
+                    markersByValues[filter_criteria].push(marker);
+         
+            }
+            })
+        })
+
+            } catch (err) {
+                console.error("Failed to load map data:", err);
+            }
+        })();
+
+        const controlsDiv = document.getElementById('controls');
+        const controlsDiv3 = document.getElementById('controls3');
+
+        // --- Filter 1: Level_2 ---
+        Object.keys(markersByValues).sort().forEach(value => {
+            const label = document.createElement('label');
+            label.className = 'control-item';
+
+            label.innerHTML = `
+                <input type="checkbox" data-level2="${value}">
+                <span class="label-text">${value}</span>
+            `;
+            controlsDiv.appendChild(label);
+        });
+
+        // --- Filter 3: Produkt-Verfügbarkeit (nur "Verfügbar") ---
+        Object.keys(markersByProducts).forEach(product => {
+            const label = document.createElement('label');
+            label.className = 'control-item';
+
+            label.innerHTML = `
+                <input type="checkbox" data-product="${product}">
+                <span class="label-text">${product}</span>
+            `;
+            controlsDiv3.appendChild(label);
+        });
+
+        // initial render
+        applyFilters();
+
+        document.querySelectorAll('#controls input, #controls2 input, #controls3 input').forEach(cb => {
+            cb.addEventListener('change', applyFilters);
+        });
+</script>
+</body>
+</html>
